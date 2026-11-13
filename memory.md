@@ -189,15 +189,18 @@ docker compose logs -f homeassistant
 ### 10.1 Audio Subsystem & Bluetooth Integration
 - **Host Audio Server:** PipeWire `1.2.7` + WirePlumber `0.4.13` + PipeWire-Pulse running under systemd user session `user@1000` (`jake`).
 - **User Linger:** `loginctl enable-linger jake` ensures user audio daemons run automatically on headless boot without GUI login.
-- **WirePlumber SBC-XQ & Anti-Suspend Tuning:** Custom rule at `/home/jake/.config/wireplumber/bluetooth.lua.d/51-bluez-custom.lua` sets `session.suspend-timeout-seconds = 0` for `bluez_output.*` nodes to prevent PipeWire from suspending the Bluetooth A2DP transport stream when idle, forces `a2dp-sink-sbc_xq` profile (SBC eXtra Quality, 452+ kbps), and configures studio-grade polyphase sinc resampling (`resample.quality = 7`).
+- **SBC Profile & Latency Tuning (Resolving Stuttering & Distortion):**
+  - **SBC vs SBC-XQ Analysis:** On Raspberry Pi 5, the onboard Bluetooth controller shares an internal UART and antenna with 2.4 GHz Wi-Fi. SBC-XQ's ~512 kbps bitrate exceeds the link bandwidth and causes over-the-air packet drops, audible as grainy crackling, stuttering, and distortion. Standard SBC (`a2dp-sink`, ~328 kbps bitpool 53) provides clean, robust audio transmission with `ERR: 0` in `pw-top`.
+  - **WirePlumber Configuration (`/home/jake/.config/wireplumber/bluetooth.lua.d/51-bluez-custom.lua`):** Forces `a2dp-sink`, `bluez5.enable-sbc-xq = false`, `bluez5.default.rate = 44100`, `session.suspend-timeout-seconds = 0` (preventing connection sleep dropouts), and `resample.quality = 4`.
+  - **PipeWire Rate & Quantum Tuning (`~/.config/pipewire/pipewire.conf.d/10-rates.conf`):** Configures `default.clock.rate = 44100`, `allowed-rates = [ 44100 48000 ]`, `default.clock.quantum = 2048`, and `min-quantum = 1024`. This guarantees generous 46 ms buffer headroom and exact integer-ratio upsampling for Piper TTS (22050 Hz * 2 = 44100 Hz).
 - **Bluetooth Auto-Reconnect Daemon:**
   - Script: [scripts/bluetooth-reconnect.py](scripts/bluetooth-reconnect.py).
   - Systemd unit: `homeserver-bluetooth-reconnect.service` ([scripts/homeserver-bluetooth-reconnect.service](scripts/homeserver-bluetooth-reconnect.service)).
-  - Checks BlueZ adapter status, auto-reconnects JBL Clip 3 (`30:C0:1B:4D:39:49`) on boot and whenever disconnected, locks profile to `a2dp-sink-sbc_xq`, sets default sink via `pactl set-default-sink bluez_output.30_C0_1B_4D_39_49.1`, and refreshes the VLC audio daemon upon reconnection.
+  - Checks BlueZ adapter status, auto-reconnects JBL Clip 3 (`30:C0:1B:4D:39:49`) on boot and whenever disconnected, locks profile to standard `a2dp-sink`, sets default sink via `pactl set-default-sink bluez_output.30_C0_1B_4D_39_49.1`, and refreshes the VLC audio daemon upon reconnection.
 - **VLC Telnet Audio Daemon:**
   - Systemd unit: `homeserver-vlc.service` ([scripts/homeserver-vlc.service](scripts/homeserver-vlc.service)).
-  - Runs `/usr/bin/cvlc -I dummy -I telnet --telnet-port 4212 --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse --network-caching=2000 --file-caching=1000 --live-caching=1000 --disc-caching=1000 --sout-mux-caching=2000 --audio-resampler=soxr --no-drop-late-frames --no-skip-frames` under user `jake` with `PULSE_SERVER=unix:/run/user/1000/pulse/native`.
-  - 2000 ms pre-buffering and SoX resampler completely eliminate HTTP streaming underruns, popping, and metallic distortion.
+  - Runs `/usr/bin/cvlc -I telnet --telnet-port 4212 --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse --network-caching=2000 --file-caching=2000 --live-caching=2000 --disc-caching=2000 --sout-mux-caching=2000 --audio-resampler=soxr --no-drop-late-frames --no-skip-frames` under user `jake` with `PULSE_SERVER=unix:/run/user/1000/pulse/native`.
+  - 2000 ms pre-buffering and SoX resampler completely eliminate HTTP streaming underruns, popping, and clock-drift jitter.
 
 ### 10.2 Microphone Input Investigation & Technical Assessment
 - **Bluetooth Profiles Tested:**

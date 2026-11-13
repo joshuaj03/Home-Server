@@ -4,7 +4,7 @@ JBL Clip 3 Bluetooth Auto-Reconnect Daemon for HomePi
 Continuously monitors Bluetooth connection to JBL Clip 3 (30:C0:1B:4D:39:49).
 - Automatically reconnects if the speaker disconnects or is powered on.
 - Sets PipeWire default sink to the JBL speaker.
-- Ensures high-definition SBC-XQ codec is active.
+- Enforces standard SBC A2DP sink profile for reliable streaming without packet drops.
 - Restarts VLC audio service upon reconnection to keep audio pipes clean and responsive.
 """
 
@@ -59,9 +59,9 @@ def ensure_adapter_powered(bus):
 def configure_audio_sink():
     try:
         time.sleep(1.5)
-        # 1. Enforce SBC-XQ high quality profile
+        # 1. Enforce standard SBC profile (prevents SBC-XQ packet drops on Pi 5)
         subprocess.run(
-            ["pactl", "set-card-profile", CARD_NAME, "a2dp-sink-sbc_xq"],
+            ["pactl", "set-card-profile", CARD_NAME, "a2dp-sink"],
             capture_output=True,
         )
         # 2. Set default sink
@@ -71,7 +71,7 @@ def configure_audio_sink():
             text=True,
         )
         if res.returncode == 0:
-            logger.info(f"PipeWire default sink set to: {SINK_NAME} (SBC-XQ)")
+            logger.info(f"PipeWire default sink set to: {SINK_NAME} (SBC)")
         # 3. Refresh VLC audio daemon so it immediately attaches to the new audio sink
         subprocess.run(
             ["sudo", "systemctl", "restart", "homeserver-vlc.service"],

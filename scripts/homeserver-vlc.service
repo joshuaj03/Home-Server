@@ -12,7 +12,7 @@ Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
 Environment="VLC_TELNET_PORT=4212"
 Environment="VLC_TELNET_PASSWORD=jbl_speaker_secret_2026"
 EnvironmentFile=-/home/jake/HomeServer/.env
-ExecStart=/usr/bin/cvlc -I dummy -I telnet --telnet-port ${VLC_TELNET_PORT} --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse --network-caching=2000 --file-caching=1000 --live-caching=1000 --disc-caching=1000 --sout-mux-caching=2000 --audio-resampler=soxr --no-drop-late-frames --no-skip-frames
+ExecStart=/usr/bin/cvlc -I telnet --telnet-port ${VLC_TELNET_PORT} --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse --network-caching=2000 --file-caching=2000 --live-caching=2000 --disc-caching=2000 --sout-mux-caching=2000 --audio-resampler=soxr --no-drop-late-frames --no-skip-frames
 Restart=always
 RestartSec=3
 
