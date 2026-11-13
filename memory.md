@@ -134,7 +134,16 @@ cd /home/jake/HomeServer
 
 # Check all containers & systemd helpers
 docker compose ps
-sudo systemctl status homeserver-updater homeserver-media-sorter
+sudo systemctl status homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc
+
+# Check JBL Clip 3 Bluetooth & audio status
+bluetoothctl info 30:C0:1B:4D:39:49
+wpctl status
+pactl get-default-sink
+
+# Trigger test announcements via Home Assistant
+curl -s -X POST -H "Authorization: Bearer $(cat /home/jake/HomeServer/.ha_token)" \
+  http://127.0.0.1:8123/api/services/script/smart_speaker_test_announcements
 
 # Check HDD mount, storage, and APM
 df -h /mnt/hdd
@@ -172,3 +181,54 @@ docker compose logs -f homeassistant
   - Automatic Home Assistant MQTT Discovery on `homeassistant/#` (7 entities grouped under `ESP32 DHT11 Sensor Node`).
   - Strict preservation of raw numeric payloads on `home/dht11/temperature` and `home/dht11/humidity` (un-retained).
   - Additional diagnostics: `home/dht11/rssi`, `home/dht11/uptime`, `home/dht11/ip`, `home/dht11/sensor_status`, `home/dht11/error_count`.
+
+---
+
+## 10. Smart Speaker Architecture (JBL Clip 3, Piper TTS & Home Assistant)
+
+### 10.1 Audio Subsystem & Bluetooth Integration
+- **Host Audio Server:** PipeWire `1.2.7` + WirePlumber `0.4.13` + PipeWire-Pulse running under systemd user session `user@1000` (`jake`).
+- **User Linger:** `loginctl enable-linger jake` ensures user audio daemons run automatically on headless boot without GUI login.
+- **WirePlumber Anti-Suspend:** Custom rule at `/home/jake/.config/wireplumber/bluetooth.lua.d/51-bluez-custom.lua` sets `session.suspend-timeout-seconds = 0` for `bluez_output.*` nodes to prevent PipeWire from suspending the Bluetooth A2DP transport stream when idle.
+- **Bluetooth Auto-Reconnect & Keepalive Daemon:**
+  - Script: [scripts/bluetooth-reconnect.py](scripts/bluetooth-reconnect.py).
+  - Systemd unit: `homeserver-bluetooth-reconnect.service` ([scripts/homeserver-bluetooth-reconnect.service](scripts/homeserver-bluetooth-reconnect.service)).
+  - Checks BlueZ adapter status, auto-reconnects JBL Clip 3 (`30:C0:1B:4D:39:49`) on boot and whenever disconnected, sets default sink via `pactl set-default-sink bluez_output.30_C0_1B_4D_39_49.1`, and emits an inaudible 20Hz keepalive pulse every 5 minutes ([scripts/keepalive.wav](scripts/keepalive.wav)) to prevent JBL firmware auto-standby power-off.
+- **VLC Telnet Audio Daemon:**
+  - Systemd unit: `homeserver-vlc.service` ([scripts/homeserver-vlc.service](scripts/homeserver-vlc.service)).
+  - Runs `/usr/bin/cvlc -I dummy -I telnet --telnet-port 4212 --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse` under user `jake` with `PULSE_SERVER=unix:/run/user/1000/pulse/native`.
+  - Exposes telnet control on `127.0.0.1:4212` for Home Assistant's `vlc_telnet` integration.
+
+### 10.2 Microphone Input Investigation & Technical Assessment
+- **Bluetooth Profiles Tested:**
+  - `a2dp-sink` (Active default): High-fidelity 48 kHz stereo playback (SBC/SBC-XQ codec). No microphone source exposed by BlueZ/PipeWire (`sinks: 1, sources: 0`).
+  - `headset-head-unit` (HSP/HFP): Tested switching profile via `pactl set-card-profile bluez_card.30_C0_1B_4D_39_49 headset-head-unit`. Successfully exposed microphone source `bluez_input.30_C0_1B_4D_39_49.0` and recorded audio with `pw-record` (verified RMS energy ~68.5).
+- **Core Limitation:** Under Bluetooth Classic specifications, bidirectional audio forces the profile to 8 kHz mono CVSD (or 16 kHz mSBC) telephone quality. In HSP/HFP mode, audio output is severely distorted, tinny, and low-bandwidth. Furthermore, dynamically negotiating between A2DP and HSP/HFP introduces 1–3 second audio dropouts.
+- **Recommendation for Voice Assistant Phase:** Maintain JBL Clip 3 dedicated to `a2dp-sink` for crystal-clear TTS announcements, music, and alarms. For the upcoming voice assistant phase (speech recognition / wake-word detection), connect a dedicated lightweight USB microphone (e.g. Anker PowerConf, Jabra Speak, or a mini USB boundary microphone) directly to the Raspberry Pi 5 USB ports.
+
+### 10.3 Piper Local TTS Integration
+- **Container:** `wyoming-piper` ([stacks/iot/compose.yml](stacks/iot/compose.yml)) using image `rhasspy/wyoming-piper:latest`.
+- **Voice Model:** `en_US-lessac-medium` (61 MB local ONNX model stored in `/home/jake/HomeServer/data/wyoming-piper/`).
+- **Network & Integration:** Exposes Wyoming protocol on port `10200` (`tcp://0.0.0.0:10200`). Integrated with Home Assistant Container via the native Wyoming integration (`tts.piper`).
+- **Resource Footprint:** Consumes ~80 MB idle RAM, synthesizes test phrases in ~150–350 ms locally on RPi 5 CPU with zero cloud dependencies.
+
+### 10.4 Home Assistant Scripts & Alarms
+- **Reusable Announcement Script ([data/homeassistant/scripts.yaml](data/homeassistant/scripts.yaml)):**
+  - `script.smart_speaker_announce`: Dynamic message announcement with volume override and Piper voice parameters.
+  - `script.smart_speaker_wake_up_briefing`: Personalized morning briefing announcing time, room temperature (reading DHT11 MQTT sensor `sensor.room_temperature`), and custom alarm message.
+  - `script.smart_speaker_reminder`: Dynamic or stored reminder announcement.
+  - `script.smart_speaker_test_announcements`: Automated test sequence for the 4 verified phrases.
+- **Helpers ([data/homeassistant/configuration.yaml](data/homeassistant/configuration.yaml)):**
+  - `input_boolean.smart_speaker_weekday_alarm_enabled` (toggle)
+  - `input_boolean.smart_speaker_weekend_alarm_enabled` (toggle)
+  - `input_boolean.smart_speaker_onetime_alarm_enabled` (toggle, auto-disables upon firing)
+  - `input_datetime.smart_speaker_weekday_alarm_time` (default `07:00:00`)
+  - `input_datetime.smart_speaker_weekend_alarm_time` (default `08:30:00`)
+  - `input_datetime.smart_speaker_onetime_alarm_time` (date & time)
+  - `input_text.smart_speaker_alarm_message` (custom text)
+  - `input_text.smart_speaker_reminder_message` (custom reminder text)
+  - `input_number.smart_speaker_volume` (volume slider 0.1–1.0, default 0.8)
+- **Automations ([data/homeassistant/automations.yaml](data/homeassistant/automations.yaml)):**
+  - `smart_speaker_weekday_alarm`: Monday–Friday trigger at weekday alarm time.
+  - `smart_speaker_weekend_alarm`: Saturday–Sunday trigger at weekend alarm time.
+  - `smart_speaker_onetime_alarm`: Exact date/time trigger, announces alert, then toggles boolean off.

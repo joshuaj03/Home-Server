@@ -1,0 +1,21 @@
+[Unit]
+Description=VLC Telnet Audio Daemon for JBL Clip 3
+After=sound.target pipewire.service
+Wants=sound.target
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+Environment="VLC_TELNET_PORT=4212"
+Environment="VLC_TELNET_PASSWORD=jbl_speaker_secret_2026"
+EnvironmentFile=-/home/jake/HomeServer/.env
+ExecStart=/usr/bin/cvlc -I telnet --telnet-port ${VLC_TELNET_PORT} --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+

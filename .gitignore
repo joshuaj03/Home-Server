@@ -1,6 +1,9 @@
 # Secrets and host-specific environment variables
 .env
 *.env.local
+.*token
+*.token
+
 
 # Persistent container configs, databases, logs, and caches
 data/

@@ -36,7 +36,7 @@ echo "==> Stack status:"
 docker compose ps
 
 echo "==> Host automation services:"
-for unit in homeserver-updater homeserver-media-sorter; do
+for unit in homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc; do
   status="$(systemctl is-active "${unit}.service" 2>/dev/null || true)"
   printf "  %-30s %s\n" "${unit}" "${status:-unknown}"
 done

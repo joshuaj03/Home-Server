@@ -38,6 +38,26 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "false"
 
+  wyoming-piper:
+    image: rhasspy/wyoming-piper:latest
+    container_name: wyoming-piper
+    restart: unless-stopped
+    command:
+      - --voice
+      - en_US-lessac-medium
+      - --uri
+      - tcp://0.0.0.0:10200
+      - --data-dir
+      - /data
+      - --download-dir
+      - /data
+    volumes:
+      - ../../data/wyoming-piper:/data
+    ports:
+      - "10200:10200"
+    networks:
+      - iot_net
+
   homeassistant:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: homeassistant
@@ -48,6 +68,7 @@ services:
       - NET_RAW
     depends_on:
       - mosquitto
+      - wyoming-piper
     environment:
       TZ: ${TZ:-Asia/Kolkata}
     volumes:

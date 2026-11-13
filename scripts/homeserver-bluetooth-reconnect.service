@@ -1,0 +1,18 @@
+[Unit]
+Description=JBL Clip 3 Bluetooth Auto-Reconnect Service
+After=bluetooth.target sound.target
+Wants=bluetooth.target
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+ExecStart=/usr/bin/python3 /home/jake/HomeServer/scripts/bluetooth-reconnect.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
