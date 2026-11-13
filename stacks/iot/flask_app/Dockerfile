@@ -1,20 +1,25 @@
-# Use official Python 3.11 slim image
+# Use official Python 3.11 slim image for a lightweight, secure container
 FROM python:3.11-slim
 
-# Set working directory in container
+# Set working directory inside container
 WORKDIR /app
 
-# Copy requirements first for caching
-COPY requirments.txt .
+# Ensure stdout and stderr streams are sent straight to terminal without buffering
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirments.txt
+# Copy dependency definitions first to leverage Docker layer caching
+COPY requirements.txt ./
+COPY requirments.txt* ./
 
-# Copy the rest of the app
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source code and web templates
 COPY . .
 
-# Expose port 5000 (Flask)
+# Expose standard Flask web server port
 EXPOSE 5000
 
-# Run the Flask app
+# Start the Flask web application
 CMD ["python", "app.py"]

@@ -20,4 +20,9 @@ __pycache__/
 *.swo
 .DS_Store
 
+# Arduino and ESP32 firmware build cache and local secrets
+stacks/iot/firmware/**/config.h
+build/
+.cache/
+
 

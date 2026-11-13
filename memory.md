@@ -71,6 +71,7 @@ All containers were consolidated from ad-hoc CLI/legacy runs into 4 modular Comp
 - **Reverse Proxy Gotcha (HA 2026.11):** In Home Assistant `2026.11`, HTTP settings moved to storage (`data/homeassistant/.storage/http`) and ignore `configuration.yaml` `http:` blocks once `yaml_migration_done: true`. `use_x_forwarded_for: true` and `trusted_proxies` (`127.0.0.1/32`, `::1/128`, `192.168.1.0/24`, `172.16.0.0/12`) are configured directly in `data/homeassistant/.storage/http`, and `configuration.yaml` is kept clean (no `yaml_still_present_after_migration` repair warnings).
 - **Glance:** Added `Home Assistant` link (`http://192.168.1.150:8123`, `sh:home-assistant`) to [data/glance/config/basic_start.yml](data/glance/config/basic_start.yml).
 - **Mosquitto MQTT:** Available to HA at `127.0.0.1:1883` (broker credentials in [stacks/iot/flask_app/app.py](stacks/iot/flask_app/app.py); sensor topics `home/dht11/temperature` and `home/dht11/humidity`).
+- **MQTT Integration & Discovery:** Native MQTT integration configured in Home Assistant (`127.0.0.1:1883`, user `homepi`, MQTT 5/3.1.1, discovery prefix `homeassistant`). Discovers ESP32 climate node with 7 registered entities (`sensor.room_temperature`, `sensor.room_humidity`, `binary_sensor.esp32_dht11_online`, `sensor.esp32_dht11_wifi_signal`, `sensor.esp32_dht11_uptime`, `sensor.esp32_dht11_error_count`, `binary_sensor.dht11_sensor_health`).
 
 ---
 
@@ -144,8 +145,30 @@ sudo smartctl -A /dev/sda | grep -E 'Load_Cycle_Count|UDMA_CRC_Error_Count|Tempe
 ./scripts/update.sh
 ./scripts/update.sh homeassistant
 
+# Check IoT Stack & Flask App
+curl http://127.0.0.1:5000/sensor
+curl http://127.0.0.1:5000/health
+docker compose logs -f flask_app mosquitto
+
 # Tail logs
 tail -f logs/update.log
 tail -f logs/media-sorter.log
 docker compose logs -f homeassistant
 ```
+
+---
+
+## 9. IoT Telemetry, Flask Dashboard & ESP32 Firmware
+
+- **Flask App ([stacks/iot/flask_app/](stacks/iot/flask_app/)):**
+  - Refactored with thread-safe `SensorState`, `.env` integration via `python-dotenv`, resilient InfluxDB client handling, and PEP 257 docstrings.
+  - Endpoints: `GET /sensor` (JSON telemetry for Glance/HA), `GET /` (dark-themed card), `GET /health`.
+  - Subscribes to `home/dht11/temperature` and `home/dht11/humidity`.
+- **ESP32 Firmware ([stacks/iot/firmware/](stacks/iot/firmware/)):**
+  - **Backup:** [DHT11_Sensor_v1_backup.ino](stacks/iot/firmware/DHT11_Sensor_v1_backup.ino).
+  - **Production Firmware:** [DHT11_Sensor/DHT11_Sensor.ino](stacks/iot/firmware/DHT11_Sensor/DHT11_Sensor.ino) and [DHT11_Sensor/config.h](stacks/iot/firmware/DHT11_Sensor/config.h).
+  - Non-blocking Wi-Fi and MQTT reconnection with exponential backoff (no watchdog reboots).
+  - MQTT Last Will and Testament on `home/dht11/status` (`offline`, QoS 1, retained).
+  - Automatic Home Assistant MQTT Discovery on `homeassistant/#` (7 entities grouped under `ESP32 DHT11 Sensor Node`).
+  - Strict preservation of raw numeric payloads on `home/dht11/temperature` and `home/dht11/humidity` (un-retained).
+  - Additional diagnostics: `home/dht11/rssi`, `home/dht11/uptime`, `home/dht11/ip`, `home/dht11/sensor_status`, `home/dht11/error_count`.

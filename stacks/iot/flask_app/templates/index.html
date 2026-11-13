@@ -1,61 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
+<!--
+  Room Climate Glance Widget
+  ==========================
+  Minimalist dark-themed dashboard widget for displaying real-time DHT11
+  temperature and humidity readings inside Glance dashboards or standalone browsers.
+-->
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Room Climate</title>
-<style>
-  :root {
-    --background-color: #121212;
-    --text-color: #d9d9d8;
-    --primary-color: #fc7f2c;
-    --accent-color: #278dec;
-    --card-bg: #121212;
-    --border-color: #1a1a19;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Climate</title>
+  <style>
+    :root {
+      --background-color: #121212;
+      --text-color: #d9d9d8;
+      --primary-color: #fc7f2c;
+      --accent-color: #278dec;
+      --card-bg: #121212;
+      --border-color: #1a1a19;
+    }
 
-  body {
-    margin: 0;
-    font-family: "JetBrains Mono", monospace;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-  }
+    body {
+      margin: 0;
+      font-family: "JetBrains Mono", monospace;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-  .card {
-    width: 100%;
-    height: 100%;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 8px 12px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    box-sizing: border-box;
-  }
+    .card {
+      width: 100%;
+      height: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      box-sizing: border-box;
+    }
 
-  .reading {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem; /* smaller font to fit */
-    line-height: 1.1rem;
-  }
+    .reading {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      line-height: 1.1rem;
+    }
 
-  .temp .value { color: var(--primary-color); font-weight: 600; }
-  .hum .value { color: var(--accent-color); font-weight: 600; }
-</style>
+    .temp .value {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .hum .value {
+      color: var(--accent-color);
+      font-weight: 600;
+    }
+  </style>
 </head>
+
 <body>
-  <div class="card">
+  <div class="card" role="region" aria-label="Room Climate Readings">
+    <!-- Temperature Reading Row -->
     <div class="reading temp">
       <span class="label">Temperature</span>
       <span class="value">{{temp}}°C</span>
     </div>
+
+    <!-- Humidity Reading Row -->
     <div class="reading hum">
       <span class="label">Humidity</span>
       <span class="value">{{hum}}%</span>
@@ -63,8 +82,9 @@
   </div>
 
   <script>
-    // Refresh every 2 seconds
+    // Automatically poll / refresh the widget every 2 seconds
     setTimeout(() => location.reload(), 2000);
   </script>
 </body>
+
 </html>
