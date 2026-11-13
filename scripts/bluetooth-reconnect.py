@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-JBL Clip 3 Bluetooth Auto-Reconnect & Keepalive Daemon for HomePi
+JBL Clip 3 Bluetooth Auto-Reconnect Daemon for HomePi
 Continuously monitors Bluetooth connection to JBL Clip 3 (30:C0:1B:4D:39:49).
 - Automatically reconnects if the speaker disconnects or is powered on.
 - Sets PipeWire default sink to the JBL speaker.
-- Sends an inaudible keepalive pulse every 5 minutes to prevent the speaker
-  from triggering auto-standby power down.
+- Ensures high-definition SBC-XQ codec is active.
+- Restarts VLC audio service upon reconnection to keep audio pipes clean and responsive.
 """
 
 import logging
@@ -26,10 +26,9 @@ logger = logging.getLogger("bluetooth-reconnect")
 MAC_RAW = "30:C0:1B:4D:39:49"
 MAC_DBUS = "30_C0_1B_4D_39_49"
 DEV_PATH = f"/org/bluez/hci0/dev_{MAC_DBUS}"
-ADAPTER_PATH = "/org/bluez/hci0"
+CARD_NAME = f"bluez_card.{MAC_DBUS}"
 SINK_NAME = f"bluez_output.{MAC_DBUS}.1"
-KEEPALIVE_FILE = "/home/jake/HomeServer/scripts/keepalive.wav"
-KEEPALIVE_INTERVAL = 300  # 5 minutes
+ADAPTER_PATH = "/org/bluez/hci0"
 
 running = True
 
@@ -57,40 +56,35 @@ def ensure_adapter_powered(bus):
         logger.debug(f"Failed to check/power adapter: {e}")
 
 
-def set_default_audio_sink():
+def configure_audio_sink():
     try:
         time.sleep(1.5)
+        # 1. Enforce SBC-XQ high quality profile
+        subprocess.run(
+            ["pactl", "set-card-profile", CARD_NAME, "a2dp-sink-sbc_xq"],
+            capture_output=True,
+        )
+        # 2. Set default sink
         res = subprocess.run(
             ["pactl", "set-default-sink", SINK_NAME],
             capture_output=True,
             text=True,
         )
         if res.returncode == 0:
-            logger.info(f"PipeWire default sink set to: {SINK_NAME}")
-        else:
-            logger.debug(f"pactl set-default-sink output: {res.stderr.strip()}")
+            logger.info(f"PipeWire default sink set to: {SINK_NAME} (SBC-XQ)")
+        # 3. Refresh VLC audio daemon so it immediately attaches to the new audio sink
+        subprocess.run(
+            ["sudo", "systemctl", "restart", "homeserver-vlc.service"],
+            capture_output=True,
+        )
+        logger.info("VLC audio daemon refreshed.")
     except Exception as e:
-        logger.warning(f"Failed to set default sink: {e}")
-
-
-def send_keepalive():
-    if os.path.exists(KEEPALIVE_FILE):
-        try:
-            subprocess.run(
-                ["paplay", "--volume=15000", KEEPALIVE_FILE],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=3,
-            )
-            logger.debug("Keepalive pulse sent to speaker.")
-        except Exception as e:
-            logger.debug(f"Keepalive error: {e}")
+        logger.warning(f"Failed to configure audio sink: {e}")
 
 
 def main():
-    logger.info(f"Starting JBL Clip 3 ({MAC_RAW}) auto-reconnect service with keepalive...")
+    logger.info(f"Starting JBL Clip 3 ({MAC_RAW}) auto-reconnect service...")
     was_connected = None
-    last_keepalive = time.time()
 
     while running:
         try:
@@ -106,15 +100,8 @@ def main():
             if connected:
                 if was_connected is not True:
                     logger.info("JBL Clip 3 is CONNECTED.")
-                    set_default_audio_sink()
+                    configure_audio_sink()
                     was_connected = True
-                    last_keepalive = time.time()
-
-                # Check if keepalive interval reached
-                now = time.time()
-                if now - last_keepalive >= KEEPALIVE_INTERVAL:
-                    send_keepalive()
-                    last_keepalive = now
 
                 # Sleep 5 seconds
                 for _ in range(5):
@@ -130,8 +117,7 @@ def main():
                     dev.Connect()
                     logger.info("Connection command succeeded!")
                     was_connected = True
-                    set_default_audio_sink()
-                    last_keepalive = time.time()
+                    configure_audio_sink()
                     time.sleep(3)
                 except dbus.DBusException as de:
                     logger.debug(f"Connect failed (speaker likely off/sleeping): {de}")

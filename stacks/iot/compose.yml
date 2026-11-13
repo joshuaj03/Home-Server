@@ -44,7 +44,7 @@ services:
     restart: unless-stopped
     command:
       - --voice
-      - en_US-lessac-medium
+      - en_US-lessac-high
       - --uri
       - tcp://0.0.0.0:10200
       - --data-dir

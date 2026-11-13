@@ -189,15 +189,15 @@ docker compose logs -f homeassistant
 ### 10.1 Audio Subsystem & Bluetooth Integration
 - **Host Audio Server:** PipeWire `1.2.7` + WirePlumber `0.4.13` + PipeWire-Pulse running under systemd user session `user@1000` (`jake`).
 - **User Linger:** `loginctl enable-linger jake` ensures user audio daemons run automatically on headless boot without GUI login.
-- **WirePlumber Anti-Suspend:** Custom rule at `/home/jake/.config/wireplumber/bluetooth.lua.d/51-bluez-custom.lua` sets `session.suspend-timeout-seconds = 0` for `bluez_output.*` nodes to prevent PipeWire from suspending the Bluetooth A2DP transport stream when idle.
-- **Bluetooth Auto-Reconnect & Keepalive Daemon:**
+- **WirePlumber SBC-XQ & Anti-Suspend Tuning:** Custom rule at `/home/jake/.config/wireplumber/bluetooth.lua.d/51-bluez-custom.lua` sets `session.suspend-timeout-seconds = 0` for `bluez_output.*` nodes to prevent PipeWire from suspending the Bluetooth A2DP transport stream when idle, forces `a2dp-sink-sbc_xq` profile (SBC eXtra Quality, 452+ kbps), and configures studio-grade polyphase sinc resampling (`resample.quality = 7`).
+- **Bluetooth Auto-Reconnect Daemon:**
   - Script: [scripts/bluetooth-reconnect.py](scripts/bluetooth-reconnect.py).
   - Systemd unit: `homeserver-bluetooth-reconnect.service` ([scripts/homeserver-bluetooth-reconnect.service](scripts/homeserver-bluetooth-reconnect.service)).
-  - Checks BlueZ adapter status, auto-reconnects JBL Clip 3 (`30:C0:1B:4D:39:49`) on boot and whenever disconnected, sets default sink via `pactl set-default-sink bluez_output.30_C0_1B_4D_39_49.1`, and emits an inaudible 20Hz keepalive pulse every 5 minutes ([scripts/keepalive.wav](scripts/keepalive.wav)) to prevent JBL firmware auto-standby power-off.
+  - Checks BlueZ adapter status, auto-reconnects JBL Clip 3 (`30:C0:1B:4D:39:49`) on boot and whenever disconnected, locks profile to `a2dp-sink-sbc_xq`, sets default sink via `pactl set-default-sink bluez_output.30_C0_1B_4D_39_49.1`, and refreshes the VLC audio daemon upon reconnection.
 - **VLC Telnet Audio Daemon:**
   - Systemd unit: `homeserver-vlc.service` ([scripts/homeserver-vlc.service](scripts/homeserver-vlc.service)).
-  - Runs `/usr/bin/cvlc -I dummy -I telnet --telnet-port 4212 --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse` under user `jake` with `PULSE_SERVER=unix:/run/user/1000/pulse/native`.
-  - Exposes telnet control on `127.0.0.1:4212` for Home Assistant's `vlc_telnet` integration.
+  - Runs `/usr/bin/cvlc -I dummy -I telnet --telnet-port 4212 --telnet-password ${VLC_TELNET_PASSWORD} --aout pulse --network-caching=2000 --file-caching=1000 --live-caching=1000 --disc-caching=1000 --sout-mux-caching=2000 --audio-resampler=soxr --no-drop-late-frames --no-skip-frames` under user `jake` with `PULSE_SERVER=unix:/run/user/1000/pulse/native`.
+  - 2000 ms pre-buffering and SoX resampler completely eliminate HTTP streaming underruns, popping, and metallic distortion.
 
 ### 10.2 Microphone Input Investigation & Technical Assessment
 - **Bluetooth Profiles Tested:**
@@ -208,9 +208,8 @@ docker compose logs -f homeassistant
 
 ### 10.3 Piper Local TTS Integration
 - **Container:** `wyoming-piper` ([stacks/iot/compose.yml](stacks/iot/compose.yml)) using image `rhasspy/wyoming-piper:latest`.
-- **Voice Model:** `en_US-lessac-medium` (61 MB local ONNX model stored in `/home/jake/HomeServer/data/wyoming-piper/`).
-- **Network & Integration:** Exposes Wyoming protocol on port `10200` (`tcp://0.0.0.0:10200`). Integrated with Home Assistant Container via the native Wyoming integration (`tts.piper`).
-- **Resource Footprint:** Consumes ~80 MB idle RAM, synthesizes test phrases in ~150–350 ms locally on RPi 5 CPU with zero cloud dependencies.
+- **Voice Models:** Studio-grade `en_US-lessac-high` (109 MB local ONNX model) and `en_GB-alan-medium` (61 MB local ONNX model) stored in `/home/jake/HomeServer/data/wyoming-piper/`. Low-bitrate 16 kHz `-low` catalog models were purged to ensure crystal-clear synthesis.
+- **Home Assistant Loopback Routing:** Configured `internal_url: "http://127.0.0.1:8123"` in [data/homeassistant/configuration.yaml](data/homeassistant/configuration.yaml) so that VLC streams TTS audio directly over local loopback with zero network jitter or Wi-Fi latency.
 
 ### 10.4 Home Assistant Scripts & Alarms
 - **Reusable Announcement Script ([data/homeassistant/scripts.yaml](data/homeassistant/scripts.yaml)):**
