@@ -1,0 +1,17 @@
+[Unit]
+Description=BlueZ MPRIS Proxy for Bluetooth Media Controls
+After=bluetooth.target sound.target pipewire.service homeserver-vlc.service
+Wants=bluetooth.target homeserver-vlc.service
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
+ExecStart=/usr/bin/mpris-proxy -e
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

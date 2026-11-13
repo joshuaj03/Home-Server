@@ -1,0 +1,18 @@
+[Unit]
+Description=JBL Clip 3 Media Controls & Volume Synchronization Bridge
+After=sound.target pipewire.service homeserver-vlc.service homeserver-bluetooth-reconnect.service
+Wants=sound.target homeserver-bluetooth-reconnect.service
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="PULSE_SERVER=unix:/run/user/1000/pulse/native"
+Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
+ExecStart=/home/jake/HomeServer/scripts/bluetooth-media-bridge.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

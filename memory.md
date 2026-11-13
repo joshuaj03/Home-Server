@@ -134,7 +134,7 @@ cd /home/jake/HomeServer
 
 # Check all containers & systemd helpers
 docker compose ps
-sudo systemctl status homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc
+sudo systemctl status homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc homeserver-mpris-proxy homeserver-bluetooth-media-bridge
 
 # Check JBL Clip 3 Bluetooth & audio status
 bluetoothctl info 30:C0:1B:4D:39:49
@@ -237,3 +237,13 @@ docker compose logs -f homeassistant
   - `smart_speaker_weekday_alarm`: Monday–Friday trigger at weekday alarm time.
   - `smart_speaker_weekend_alarm`: Saturday–Sunday trigger at weekend alarm time.
   - `smart_speaker_onetime_alarm`: Exact date/time trigger, announces alert, then toggles boolean off.
+
+### 10.5 Hardware Media Controls & Bidirectional Volume Synchronization
+- **BlueZ MPRIS Proxy (`homeserver-mpris-proxy.service`):**
+  - Unit: [scripts/homeserver-mpris-proxy.service](scripts/homeserver-mpris-proxy.service) running `/usr/bin/mpris-proxy -e` attached to user session bus `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus`.
+  - Bridges AVRCP Pass-Through commands (Play, Pause, Next track, Previous track) from the JBL Clip 3 directly into VLC's MPRIS interface (`org.mpris.MediaPlayer2.vlc`).
+- **Media Controls & Volume Bridge (`homeserver-bluetooth-media-bridge.service`):**
+  - Daemon: [scripts/bluetooth-media-bridge.py](scripts/bluetooth-media-bridge.py) & unit [scripts/homeserver-bluetooth-media-bridge.service](scripts/homeserver-bluetooth-media-bridge.service).
+  - **Speaker Buttons -> Home Assistant Volume:** Monitors BlueZ D-Bus `PropertiesChanged` on `org.bluez.MediaTransport1` for property `Volume` (0..127). When the user presses `+` or `-` on the JBL Clip 3, it converts the level (`vol / 127.0`) and calls `media_player.volume_set` in Home Assistant, so the Home Assistant UI slider moves in real time.
+  - **Home Assistant Slider -> Physical Speaker Volume:** Monitors PulseAudio sink-input volume changes from Home Assistant and syncs them to PipeWire sink `bluez_output.30_C0_1B_4D_39_49.1`, sending AVRCP Absolute Volume commands to the speaker to adjust the physical amplifier.
+  - **Hardware Key Listener:** Monitors `/dev/input/event*` for `JBL Clip 3 (AVRCP)` events (`KEY_PLAYPAUSE`, `KEY_NEXTSONG`, `KEY_PREVIOUSSONG`) and dispatches Home Assistant media player service calls.
