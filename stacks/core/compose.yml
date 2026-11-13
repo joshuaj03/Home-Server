@@ -1,0 +1,59 @@
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    dns:
+      - 127.0.0.1
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      # Password is persisted in data/pihole/etc-pihole/pihole.toml.
+      # Uncomment below only if bootstrapping fresh or forcing a password reset:
+      # FTLCONF_webserver_api_password: ${PIHOLE_PASSWORD}
+    volumes:
+      - ../../data/pihole/etc-pihole:/etc/pihole
+      - ../../data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
+
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: npm
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+    volumes:
+      - ../../data/npm/data:/data
+      - ../../data/npm/letsencrypt:/etc/letsencrypt
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../../data/portainer:/data
+
+  watchtower:
+    image: nickfedor/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Kolkata}
+      WATCHTOWER_SCHEDULE: ${WATCHTOWER_SCHEDULE:-0 0 4 * * *}
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_ROLLING_RESTART: "false"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_TIMEOUT: 30s
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+

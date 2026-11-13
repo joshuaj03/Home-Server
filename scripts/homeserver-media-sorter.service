@@ -1,0 +1,21 @@
+[Unit]
+Description=HomeServer Jellyfin Media Auto-Sorter
+After=network-online.target docker.service
+Wants=network-online.target
+RequiresMountsFor=/mnt/hdd
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+WorkingDirectory=/home/jake/HomeServer
+Environment=HOME=/home/jake
+Environment=PATH=/home/jake/HomeServer/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+EnvironmentFile=/home/jake/HomeServer/.env
+ExecStart=/home/jake/HomeServer/.venv/bin/python /home/jake/HomeServer/scripts/media-sorter.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,16 @@
+# Docker ignore for flask_app build context
+.dockerignore
+Dockerfile
+.git
+.env
+.env.*
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.md
+*.bk
+*.bak
+.DS_Store
+Thumbs.db

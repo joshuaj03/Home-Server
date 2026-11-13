@@ -1,0 +1,12 @@
+name: homeserver
+
+include:
+  - path: stacks/core/compose.yml
+    env_file: .env
+  - path: stacks/media/compose.yml
+    env_file: .env
+  - path: stacks/monitoring/compose.yml
+    env_file: .env
+  - path: stacks/iot/compose.yml
+    env_file: .env
+

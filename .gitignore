@@ -1,0 +1,23 @@
+# Secrets and host-specific environment variables
+.env
+*.env.local
+
+# Persistent container configs, databases, logs, and caches
+data/
+logs/
+.venv/
+
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary and backup files
+*.bk
+*.bak
+*.tmp
+*.swp
+*.swo
+.DS_Store
+
+

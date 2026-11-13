@@ -1,0 +1,33 @@
+services:
+  glance:
+    image: glanceapp/glance:latest
+    container_name: glance
+    restart: unless-stopped
+    network_mode: host
+    dns:
+      - 192.168.1.150
+    environment:
+      MY_SECRET_TOKEN: ${GLANCE_SECRET_TOKEN:-123456}
+    volumes:
+      - ../../data/glance/config:/app/config
+      - ../../data/glance/assets:/app/assets
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/hdd:/mnt/hdd:ro
+
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    restart: unless-stopped
+    command: ["glances", "-w", "-B", "0.0.0.0", "--enable-plugin", "smart"]
+    pid: host
+    network_mode: host
+    privileged: true
+    security_opt:
+      - label=disable
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/hdd:/mnt/hdd:ro
+

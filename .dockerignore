@@ -1,0 +1,28 @@
+# Version control & editor metadata
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets, runtime data, logs, and host virtualenvs
+.env
+.env.*
+data/
+logs/
+.venv/
+
+# Host automation scripts & systemd units (not needed in image builds)
+scripts/
+
+# Documentation & backups
+*.md
+*.bk
+*.bak
+__pycache__/
+*.py[cod]
+*$py.class
