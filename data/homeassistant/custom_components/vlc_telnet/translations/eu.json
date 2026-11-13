@@ -1,0 +1,42 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Zerbitzua dagoeneko konfiguratuta dago",
+            "cannot_connect": "Konexioak huts egin du",
+            "invalid_auth": "Autentifikazio baliogabea",
+            "unknown": "Ustekabeko errorea"
+        },
+        "error": {
+            "cannot_connect": "Konexioak huts egin du",
+            "invalid_auth": "Autentifikazio baliogabea",
+            "unknown": "Ustekabeko errorea"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "reauth_confirm": {
+                "data": {
+                    "password": "Pasahitza"
+                }
+            },
+            "user": {
+                "data": {
+                    "host": "Ostalari",
+                    "name": "Izena",
+                    "password": "Pasahitza",
+                    "port": "Ataka"
+                },
+                "data_description": {
+                    "host": "Zure VLC erreproduzitzailearen ostalari-izena edo IP helbidea."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Agindu-errorea: {error}"
+        },
+        "connect_error": {
+            "message": "Konexioa errorea: {error}"
+        }
+    }
+}

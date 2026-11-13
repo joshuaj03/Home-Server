@@ -30,3 +30,4 @@ table.insert(bluez_monitor.rules, {
     ["resample.quality"] = 4,
   },
 })
+

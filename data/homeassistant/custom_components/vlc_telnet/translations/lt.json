@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Paslauga jau sukonfig\u016bruota",
+            "cannot_connect": "Nepavyko prisijungti",
+            "invalid_auth": "Neteisingas autentifikavimas",
+            "unknown": "Netik\u0117ta klaida"
+        },
+        "error": {
+            "cannot_connect": "Nepavyko prisijungti",
+            "invalid_auth": "Neteisingas autentifikavimas",
+            "unknown": "Netik\u0117ta klaida"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "hassio_confirm": {
+                "description": "Ar norite prisijungti prie {addon} program\u0117l\u0117s?"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "password": "Slapta\u017eodis"
+                },
+                "description": "\u012eveskite teising\u0105 pagrindinio kompiuterio slapta\u017eod\u012f: {host}"
+            },
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "name": "Vardas",
+                    "password": "Slapta\u017eodis",
+                    "port": "Prievadas"
+                },
+                "data_description": {
+                    "host": "J\u016bs\u0173 VLC medijos leistuvo pagrindinio kompiuterio pavadinimas arba IP adresas."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Komandos klaida: {error}"
+        },
+        "connect_error": {
+            "message": "Ry\u0161io klaida: {error}"
+        }
+    }
+}

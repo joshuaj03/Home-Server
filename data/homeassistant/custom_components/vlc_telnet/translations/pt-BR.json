@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "O servi\u00e7o j\u00e1 est\u00e1 configurado",
+            "cannot_connect": "Falha ao conectar",
+            "invalid_auth": "Autentica\u00e7\u00e3o inv\u00e1lida",
+            "unknown": "Erro inesperado"
+        },
+        "error": {
+            "cannot_connect": "Falha ao conectar",
+            "invalid_auth": "Autentica\u00e7\u00e3o inv\u00e1lida",
+            "unknown": "Erro inesperado"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "hassio_confirm": {
+                "description": "Voc\u00ea quer se conectar ao aplicativo {addon}?"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "password": "Senha"
+                },
+                "description": "Insira a senha correta para o host: {host}"
+            },
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "name": "Nome",
+                    "password": "Senha",
+                    "port": "Porta"
+                },
+                "data_description": {
+                    "host": "Nome do host ou endere\u00e7o IP do seu reprodutor de m\u00eddia VLC."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Erro de comando: {error}"
+        },
+        "connect_error": {
+            "message": "Erro de conex\u00e3o: {error}"
+        }
+    }
+}

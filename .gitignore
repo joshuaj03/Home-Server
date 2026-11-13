@@ -6,7 +6,12 @@
 
 
 # Persistent container configs, databases, logs, and caches
-data/
+data/*
+!data/homeassistant/
+data/homeassistant/*
+!data/homeassistant/custom_components/
+!data/homeassistant/custom_components/**
+data/homeassistant/custom_components/**/__pycache__/
 logs/
 .venv/
 

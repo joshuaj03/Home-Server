@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "O servizo xa est\u00e1 configurado",
+            "cannot_connect": "Non se puido conectar",
+            "invalid_auth": "Autenticaci\u00f3n non v\u00e1lida",
+            "unknown": "Erro inesperado"
+        },
+        "error": {
+            "cannot_connect": "Non se puido conectar",
+            "invalid_auth": "Autenticaci\u00f3n non v\u00e1lida",
+            "unknown": "Erro inesperado"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "hassio_confirm": {
+                "description": "Queres conectar coa aplicaci\u00f3n {addon}?"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "password": "Contrasinal"
+                },
+                "description": "Introduce o contrasinal correcto para o host: {host}"
+            },
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "name": "Nome",
+                    "password": "Contrasinal",
+                    "port": "Porto"
+                },
+                "data_description": {
+                    "host": "Nome do host ou enderezo IP do teu reprodutor multimedia VLC."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Erro na orde: {error}"
+        },
+        "connect_error": {
+            "message": "Erro de conexi\u00f3n: {error}"
+        }
+    }
+}

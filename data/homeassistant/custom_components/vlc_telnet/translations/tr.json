@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Hizmet zaten yap\u0131land\u0131r\u0131lm\u0131\u015f",
+            "cannot_connect": "Ba\u011flanma hatas\u0131",
+            "invalid_auth": "Ge\u00e7ersiz kimlik do\u011frulama",
+            "unknown": "Beklenmeyen hata"
+        },
+        "error": {
+            "cannot_connect": "Ba\u011flanma hatas\u0131",
+            "invalid_auth": "Ge\u00e7ersiz kimlik do\u011frulama",
+            "unknown": "Beklenmeyen hata"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "hassio_confirm": {
+                "description": "Ba\u011flanmak ister misiniz? {addon} uygulama?"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "password": "\u015eifre"
+                },
+                "description": "L\u00fctfen sunucunun do\u011fru \u015fifresini giriniz: {host}"
+            },
+            "user": {
+                "data": {
+                    "host": "Sunucu",
+                    "name": "Ad",
+                    "password": "\u015eifre",
+                    "port": "Ba\u011flant\u0131 Noktas\u0131"
+                },
+                "data_description": {
+                    "host": "VLC medya oynat\u0131c\u0131n\u0131z\u0131n ana bilgisayar ad\u0131 veya IP adresi."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Komut hatas\u0131: {error}"
+        },
+        "connect_error": {
+            "message": "Ba\u011flant\u0131 hatas\u0131: {error}"
+        }
+    }
+}

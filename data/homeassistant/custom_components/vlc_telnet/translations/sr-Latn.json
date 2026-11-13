@@ -1,0 +1,46 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Usluga je ve\u0107 pode\u0161ena",
+            "cannot_connect": "Povezivanje nije uspelo",
+            "invalid_auth": "Neva\u017ee\u0107i podaci za prijavu",
+            "unknown": "Neo\u010dekivana gre\u0161ka"
+        },
+        "error": {
+            "cannot_connect": "Povezivanje nije uspelo",
+            "invalid_auth": "Neva\u017ee\u0107i podaci za prijavu",
+            "unknown": "Neo\u010dekivana gre\u0161ka"
+        },
+        "flow_title": "{host}",
+        "step": {
+            "hassio_confirm": {
+                "description": "\u017delite li da se pove\u017eete sa aplikacijom {addon}?"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "password": "Lozinka"
+                },
+                "description": "Unesite ta\u010dnu lozinku za host: {host}"
+            },
+            "user": {
+                "data": {
+                    "host": "Adresa hosta",
+                    "name": "Naziv",
+                    "password": "Lozinka",
+                    "port": "Port"
+                },
+                "data_description": {
+                    "host": "Naziv hosta ili IP adresa va\u0161eg VLC media plejera."
+                }
+            }
+        }
+    },
+    "exceptions": {
+        "command_error": {
+            "message": "Gre\u0161ka u komandi: {error}"
+        },
+        "connect_error": {
+            "message": "Gre\u0161ka pri povezivanju: {error}"
+        }
+    }
+}
