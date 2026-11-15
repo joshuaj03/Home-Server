@@ -12,3 +12,83 @@ services:
       - ../../data/jellyfin/cache:/cache
       - ${JELLYFIN_MEDIA_DIR:-/home/jake/jellyfin/media}:/media
 
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Kolkata}
+      - WEBUI_PORT=8085
+      - TORRENTING_PORT=6881
+    ports:
+      - "8085:8085"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - ../../data/qbittorrent:/config
+      - /mnt/hdd:/data
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "9696:9696"
+    volumes:
+      - ../../data/prowlarr:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "8989:8989"
+    volumes:
+      - ../../data/sonarr:/config
+      - /mnt/hdd:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "7878:7878"
+    volumes:
+      - ../../data/radarr:/config
+      - /mnt/hdd:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Asia/Kolkata}
+    ports:
+      - "6767:6767"
+    volumes:
+      - ../../data/bazarr:/config
+      - /mnt/hdd:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

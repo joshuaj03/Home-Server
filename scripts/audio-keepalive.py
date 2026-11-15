@@ -97,7 +97,8 @@ def main():
             "--rate", str(SAMPLERATE),
             "--channels", "2",
             "--format", "s16",
-            "--volume", "1.0",
+            "--volume", "0.05",
+            "--media-role", "keepalive",
             "-",
         ]
 

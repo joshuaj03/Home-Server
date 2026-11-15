@@ -507,10 +507,11 @@ Host systemd services manage connectivity and playback:
    - Bridges Bluetooth AVRCP media keys from the speaker directly to VLC via D-Bus MPRIS (`org.mpris.MediaPlayer2.vlc`).
 4. **`homeserver-bluetooth-media-bridge.service` ([scripts/bluetooth-media-bridge.py](scripts/bluetooth-media-bridge.py)):**
    - **Speaker Buttons -> Home Assistant Volume:** Watches BlueZ `org.bluez.MediaTransport1` volume changes (0..127) and synchronizes them to Home Assistant's `media_player.vlc_telnet` entity.
-   - **Home Assistant Slider -> Speaker Hardware Volume:** Watches PulseAudio sink-input volume changes from Home Assistant and syncs them to PipeWire sink volume, adjusting the physical speaker amplifier via AVRCP.
+   - **Home Assistant Slider -> Speaker Hardware Volume:** Dedicated background polling thread (`ha_volume_poller`) checks Home Assistant volume every 1.5s and syncs slider movements to PipeWire sink volume, adjusting the physical speaker amplifier via AVRCP even when VLC is stopped.
+   - **Sink-Input Isolation:** Specifically isolates VLC media player sink-inputs (`get_vlc_sink_input_volume()`) and ignores `pw-play` keep-alive streams, completely eliminating volume runaway feedback loops.
    - **Hardware Key Listener:** Captures `/dev/input/event*` AVRCP button events (`KEY_PLAYPAUSE`, `KEY_NEXTSONG`, `KEY_PREVIOUSSONG`) and dispatches Home Assistant media player controls.
 5. **`homeserver-audio-keepalive.service` ([scripts/audio-keepalive.py](scripts/audio-keepalive.py)):**
-   - Streams an imperceptible 5 Hz infrasound signal directly to the Bluetooth sink to prevent the speaker from shutting off after 15 minutes of silence.
+   - Streams an imperceptible 5 Hz infrasound signal directly to the Bluetooth sink with `--volume 0.05` and `--media-role keepalive` to prevent the speaker from shutting off after 15 minutes of silence.
 
 ### 11.4 Inaudible Infrasound Keep-Alive Daemon (Preventing 15-Minute Auto-Off)
 
@@ -528,18 +529,34 @@ Host systemd services manage connectivity and playback:
   - `en_GB-alan-medium` (61 MB, 22050 Hz)
 - **Local Loopback Routing:** Configured `internal_url: "http://127.0.0.1:8123"` in Home Assistant so VLC retrieves generated TTS WAV files directly via localhost without Wi-Fi round-trips.
 
-### 11.6 Home Assistant Scripts & Alarms
+### 11.6 Home Assistant Scripts, Alarms & Audio Controls
 
-- **`script.smart_speaker_announce`:** Reusable announcement script supporting dynamic text, custom volume override, and voice selection.
+- **Normalized Default Volume:** Set default volume across all services to **30% (`0.30`)**.
+- **`script.smart_speaker_announce`:** Reusable announcement script supporting dynamic text, custom volume override, and voice selection. Preserves active volume without resetting unless an explicit volume override is provided.
+- **`script.smart_speaker_alarm_fire`:** Rings `alarm_chime.wav` (ascending 3-note harmonic chime), sets volume to 30%, speaks morning briefing, and repeats every 25 seconds while ringing is active.
+- **`script.smart_speaker_alarm_snooze`:** Snoozes alarm for configurable duration (default 9 minutes via `timer.smart_speaker_snooze`), pauses playback, and announces snooze status.
+- **`script.smart_speaker_alarm_stop`:** Cancels ringing, clears snooze state, halts VLC playback, and announces confirmation.
 - **`script.smart_speaker_wake_up_briefing`:** Morning briefing announcing current time, live room temperature from the ESP32 DHT11 MQTT sensor (`sensor.room_temperature`), and custom alarm notes.
 - **`script.smart_speaker_reminder`:** Reusable reminder announcement script.
+- **Quick Timers & Radio Presets:** Scripts for 5-minute/15-minute countdown timers (`timer.smart_speaker_countdown`) and 1-click web radio playback.
 - **Alarm Automations:**
   - `smart_speaker_weekday_alarm`: Mon–Fri automated wake-up at configured time (`input_datetime.smart_speaker_weekday_alarm_time`).
   - `smart_speaker_weekend_alarm`: Sat–Sun automated wake-up (`input_datetime.smart_speaker_weekend_alarm_time`).
   - `smart_speaker_onetime_alarm`: Single-shot scheduled alarm with auto-disable.
-  - Configurable toggle switches (`input_boolean`), custom message inputs (`input_text`), and default volume slider (`input_number.smart_speaker_volume`).
+  - `smart_speaker_snooze_expired`: Re-fires the alarm when snooze timer completes.
+  - `smart_speaker_hardware_button_stop`: Stops the alarm when the physical Play/Pause button on the JBL Clip 3 is pressed.
+  - `smart_speaker_timer_expired`: Announces timer completion with chime.
 
-### 11.7 Microphone Capabilities & Future Voice Assistant Phase
+### 11.7 Dedicated Smart Speaker Dashboard (`/smart-speaker`)
+
+Home Assistant includes a tailored dashboard accessible at `http://192.168.1.150:8123/smart-speaker`:
+- **Conditional Alert Banner:** Displays prominent STOP and SNOOZE buttons whenever an alarm is ringing.
+- **Active Snooze Card:** Shows countdown timer with a one-click cancel action.
+- **Media Controls:** Full VLC playback card with volume slider, play/pause, and streaming status.
+- **Schedule Management:** Direct configuration of weekday, weekend, and one-time alarms.
+- **Timers & Presets:** Quick 5m/15m timers and streaming radio presets.
+
+### 11.8 Microphone Capabilities & Future Voice Assistant Phase
 
 - **HFP/HSP vs. A2DP Evaluation:**
   - The JBL Clip 3 hardware supports HSP/HFP (`headset-head-unit`). PipeWire can switch profiles and capture microphone input via `bluez_input.<BT_MAC_UNDERSCORES>.0`.
@@ -547,7 +564,7 @@ Host systemd services manage connectivity and playback:
   - Dynamic switching between A2DP and HSP/HFP creates 1–3 second negotiation delays and frequent connection drops.
 - **Recommendation:** Maintain the JBL Clip 3 exclusively as an A2DP high-fidelity audio output device. For the future voice assistant phase (wake-word detection & speech-to-text), use a dedicated USB microphone (e.g. mini boundary USB microphone or conference speakerphone mic) plugged directly into the Raspberry Pi 5.
 
-### 11.8 Smart Speaker Verification & Commands
+### 11.9 Smart Speaker Verification & Commands
 
 ```bash
 # Check Bluetooth speaker connection and audio sink

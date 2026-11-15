@@ -48,7 +48,7 @@ running = True
 last_speaker_sync_time = 0.0
 last_ha_sync_time = 0.0
 last_button_time = 0.0
-current_volume = 0.8
+current_volume = 0.3
 
 
 def handle_signal(sig, frame):
@@ -160,6 +160,27 @@ def input_event_listener():
             time.sleep(1)
 
 
+def get_vlc_sink_input_volume():
+    """Extracts volume strictly from the VLC media player sink-input block"""
+    try:
+        res = subprocess.run(
+            ["pactl", "list", "sink-inputs"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        for block in res.stdout.split("Sink Input #"):
+            if not block.strip():
+                continue
+            if "vlc" in block.lower():
+                m = re.search(r"Volume:.*?(\d+)%", block)
+                if m:
+                    return int(m.group(1))
+    except Exception as e:
+        logger.debug(f"Error reading sink-inputs: {e}")
+    return None
+
+
 def pactl_sink_input_watcher():
     """Watches for volume slider adjustments in Home Assistant and syncs to speaker"""
     global last_speaker_sync_time, last_ha_sync_time, current_volume
@@ -181,31 +202,59 @@ def pactl_sink_input_watcher():
                 # When HA adjusts volume, VLC sink-input changes
                 if "sink-input" in line and "change" in line:
                     now = time.time()
-                    if now - last_speaker_sync_time < 1.0:
+                    if now - last_speaker_sync_time < 1.2:
                         # Caused by speaker-to-HA sync, ignore
                         continue
 
-                    # Query new sink-input volume
-                    res = subprocess.run(
-                        ["pactl", "list", "sink-inputs"],
-                        capture_output=True,
-                        text=True,
-                    )
-                    m = re.search(r"Volume:.*?(\d+)%", res.stdout)
-                    if m:
-                        ha_vol_pct = int(m.group(1))
-                        ha_vol = ha_vol_pct / 100.0
+                    # Query new VLC sink-input volume strictly
+                    vlc_vol_pct = get_vlc_sink_input_volume()
+                    if vlc_vol_pct is not None:
+                        ha_vol = vlc_vol_pct / 100.0
                         if abs(ha_vol - current_volume) >= 0.03:
                             current_volume = ha_vol
                             last_ha_sync_time = now
-                            logger.info(f"[VOLUME] HA volume changed to {ha_vol_pct}%. Syncing to JBL hardware sink...")
+                            logger.info(f"[VOLUME] VLC stream volume changed to {vlc_vol_pct}%. Syncing to JBL hardware sink...")
                             subprocess.run(
-                                ["pactl", "set-sink-volume", SINK_NAME, f"{ha_vol_pct}%"],
+                                ["pactl", "set-sink-volume", SINK_NAME, f"{vlc_vol_pct}%"],
                                 capture_output=True,
                             )
         except Exception as e:
             logger.debug(f"Pactl watcher exception: {e}")
             time.sleep(2)
+
+
+def ha_volume_poller():
+    """Polls Home Assistant volume in case slider is moved while VLC is idle"""
+    global last_speaker_sync_time, last_ha_sync_time, current_volume
+    logger.info("Starting Home Assistant volume polling thread...")
+
+    while running:
+        time.sleep(1.5)
+        now = time.time()
+        if now - last_speaker_sync_time < 2.0:
+            continue
+
+        token = get_ha_token()
+        if not token:
+            continue
+
+        try:
+            url = f"{HA_BASE_URL}/api/states/{ENTITY_ID}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = json.load(resp)
+                ha_vol = data.get("attributes", {}).get("volume_level")
+                if ha_vol is not None and abs(ha_vol - current_volume) >= 0.03:
+                    current_volume = ha_vol
+                    last_ha_sync_time = now
+                    pct = int(round(ha_vol * 100))
+                    logger.info(f"[VOLUME] Home Assistant volume slider adjusted to {pct}%. Syncing to JBL hardware sink...")
+                    subprocess.run(
+                        ["pactl", "set-sink-volume", SINK_NAME, f"{pct}%"],
+                        capture_output=True,
+                    )
+        except Exception as e:
+            logger.debug(f"HA volume poll error: {e}")
 
 
 def on_dbus_property_changed(interface, changed_props, invalidated_props, path):
@@ -240,6 +289,10 @@ def main():
     # Start pactl sink-input watcher thread
     t_pactl = threading.Thread(target=pactl_sink_input_watcher, daemon=True)
     t_pactl.start()
+
+    # Start Home Assistant volume poller thread
+    t_ha = threading.Thread(target=ha_volume_poller, daemon=True)
+    t_ha.start()
 
     # Setup D-Bus main loop for volume property monitoring
     DBusGMainLoop(set_as_default=True)

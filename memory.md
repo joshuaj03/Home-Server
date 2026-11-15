@@ -217,26 +217,38 @@ docker compose logs -f homeassistant
 - **Voice Models:** Studio-grade `en_US-lessac-high` (109 MB local ONNX model) and `en_GB-alan-medium` (61 MB local ONNX model) stored in `/home/jake/HomeServer/data/wyoming-piper/`. Low-bitrate 16 kHz `-low` catalog models were purged to ensure crystal-clear synthesis.
 - **Home Assistant Loopback Routing:** Configured `internal_url: "http://127.0.0.1:8123"` in [data/homeassistant/configuration.yaml](data/homeassistant/configuration.yaml) so that VLC streams TTS audio directly over local loopback with zero network jitter or Wi-Fi latency.
 
-### 10.4 Home Assistant Scripts & Alarms
-- **Reusable Announcement Script ([data/homeassistant/scripts.yaml](data/homeassistant/scripts.yaml)):**
-  - `script.smart_speaker_announce`: Dynamic message announcement with volume override and Piper voice parameters.
-  - `script.smart_speaker_wake_up_briefing`: Personalized morning briefing announcing time, room temperature (reading DHT11 MQTT sensor `sensor.room_temperature`), and custom alarm message.
+### 10.4 Home Assistant Scripts, Alarms & Audio Controls
+- **Announcement & Audio Scripts ([data/homeassistant/scripts.yaml](data/homeassistant/scripts.yaml)):**
+  - `script.smart_speaker_announce`: Dynamic message announcement. Preserves current volume level without resetting it; only sets volume if explicitly passed in script parameters.
+  - `script.smart_speaker_alarm_fire`: Rings `alarm_chime.wav` (harmonic ascending 3-note chime), sets volume to `input_number.smart_speaker_volume` (30%), speaks morning briefing, and repeats every 25 seconds while `alarm_ringing` is `on`.
+  - `script.smart_speaker_alarm_snooze`: Stops ringing, sets snooze flag, pauses playback, starts snooze timer for configured duration, and announces snooze status.
+  - `script.smart_speaker_alarm_stop`: Stops ringing, clears snooze state, cancels snooze timer, stops VLC playback, and announces confirmation.
+  - `script.smart_speaker_wake_up_briefing`: Morning briefing announcing time, room temperature (reading DHT11 MQTT sensor `sensor.room_temperature`), and custom alarm message.
   - `script.smart_speaker_reminder`: Dynamic or stored reminder announcement.
-  - `script.smart_speaker_test_announcements`: Automated test sequence for the 4 verified phrases.
+  - `script.smart_speaker_timer_5min`, `script.smart_speaker_timer_15min`, `script.smart_speaker_timer_cancel`: Quick countdown timer scripts.
+  - `script.smart_speaker_play_mellow`, `script.smart_speaker_play_rock`: Internet radio stream presets.
 - **Helpers ([data/homeassistant/configuration.yaml](data/homeassistant/configuration.yaml)):**
+  - `input_boolean.smart_speaker_alarm_ringing`: Active alarm ringing state.
+  - `input_boolean.smart_speaker_alarm_snoozed`: Active snooze state.
   - `input_boolean.smart_speaker_weekday_alarm_enabled` (toggle)
   - `input_boolean.smart_speaker_weekend_alarm_enabled` (toggle)
   - `input_boolean.smart_speaker_onetime_alarm_enabled` (toggle, auto-disables upon firing)
   - `input_datetime.smart_speaker_weekday_alarm_time` (default `07:00:00`)
   - `input_datetime.smart_speaker_weekend_alarm_time` (default `08:30:00`)
   - `input_datetime.smart_speaker_onetime_alarm_time` (date & time)
+  - `input_number.smart_speaker_snooze_duration` (1–30 min slider, default 9 min)
+  - `input_number.smart_speaker_volume` (volume slider 0.05–1.0, default 0.30 / 30%)
+  - `timer.smart_speaker_snooze` (default `00:09:00`)
+  - `timer.smart_speaker_countdown` (default `00:05:00`)
   - `input_text.smart_speaker_alarm_message` (custom text)
   - `input_text.smart_speaker_reminder_message` (custom reminder text)
-  - `input_number.smart_speaker_volume` (volume slider 0.1–1.0, default 0.8)
 - **Automations ([data/homeassistant/automations.yaml](data/homeassistant/automations.yaml)):**
-  - `smart_speaker_weekday_alarm`: Monday–Friday trigger at weekday alarm time.
-  - `smart_speaker_weekend_alarm`: Saturday–Sunday trigger at weekend alarm time.
-  - `smart_speaker_onetime_alarm`: Exact date/time trigger, announces alert, then toggles boolean off.
+  - `smart_speaker_weekday_alarm`: Monday–Friday trigger at weekday alarm time (triggers `smart_speaker_alarm_fire`).
+  - `smart_speaker_weekend_alarm`: Saturday–Sunday trigger at weekend alarm time (triggers `smart_speaker_alarm_fire`).
+  - `smart_speaker_onetime_alarm`: Exact date/time trigger, triggers alarm fire, then toggles boolean off.
+  - `smart_speaker_snooze_expired`: Triggers `smart_speaker_alarm_fire` when snooze timer completes.
+  - `smart_speaker_hardware_button_stop`: Triggers `smart_speaker_alarm_stop` when speaker Play/Pause button is pressed (detected via VLC transitioning to `paused` while `alarm_ringing == 'on'`).
+  - `smart_speaker_timer_expired`: Plays chime and announces when countdown timer finishes.
 
 ### 10.5 Hardware Media Controls & Bidirectional Volume Synchronization
 - **BlueZ MPRIS Proxy (`homeserver-mpris-proxy.service`):**
@@ -244,11 +256,23 @@ docker compose logs -f homeassistant
   - Bridges AVRCP Pass-Through commands (Play, Pause, Next track, Previous track) from the JBL Clip 3 directly into VLC's MPRIS interface (`org.mpris.MediaPlayer2.vlc`).
 - **Media Controls & Volume Bridge (`homeserver-bluetooth-media-bridge.service`):**
   - Daemon: [scripts/bluetooth-media-bridge.py](scripts/bluetooth-media-bridge.py) & unit [scripts/homeserver-bluetooth-media-bridge.service](scripts/homeserver-bluetooth-media-bridge.service).
+  - **Normalized Default Volume:** Set default volume to 30% (`0.30`).
   - **Speaker Buttons -> Home Assistant Volume:** Monitors BlueZ D-Bus `PropertiesChanged` on `org.bluez.MediaTransport1` for property `Volume` (0..127). When the user presses `+` or `-` on the JBL Clip 3, it converts the level (`vol / 127.0`) and calls `media_player.volume_set` in Home Assistant, so the Home Assistant UI slider moves in real time.
-  - **Home Assistant Slider -> Physical Speaker Volume:** Monitors PulseAudio sink-input volume changes from Home Assistant and syncs them to PipeWire sink `bluez_output.<BT_MAC_UNDERSCORES>.1`, sending AVRCP Absolute Volume commands to the speaker to adjust the physical amplifier.
+  - **Sink-Input Isolation (Fixing 100% Volume Reset Bug):** `pactl_sink_input_watcher()` specifically filters `pactl list sink-inputs` for blocks belonging to `vlc` via `get_vlc_sink_input_volume()`, ignoring the `pw-play` keep-alive stream. This completely eliminates the runaway feedback loop that previously reset volume to 100%.
+  - **Background HA Volume Poller:** Dedicated thread `ha_volume_poller` polls Home Assistant volume every 1.5s, syncing slider changes directly to the PipeWire sink (`pactl set-sink-volume`) even when VLC is idle or stopped.
   - **Hardware Key Listener:** Monitors `/dev/input/event*` for `JBL Clip 3 (AVRCP)` events (`KEY_PLAYPAUSE`, `KEY_NEXTSONG`, `KEY_PREVIOUSSONG`) and dispatches Home Assistant media player service calls.
 
-### 10.6 Inaudible Infrasound Keep-Alive Daemon (Preventing 15-Minute Auto-Off)
+### 10.6 Dedicated Smart Speaker Dashboard & UI
+- **Dashboard Path:** `http://192.168.1.150:8123/smart-speaker` (configured in `data/homeassistant/.storage/lovelace_dashboards` and `lovelace.smart_speaker`).
+- **Features:**
+  - **Alarm Ringing Banner:** High-visibility conditional card displayed only while ringing, featuring immediate STOP and SNOOZE buttons.
+  - **Active Snooze Card:** Displays remaining snooze time with a 1-click "Cancel Snooze & Turn Off" action.
+  - **Media Player Control:** Interactive VLC card with volume slider, play/pause, and track info.
+  - **Alarm Schedules:** Direct controls for Weekday, Weekend, and One-Time alarm toggles and time selectors.
+  - **Quick Countdown Timers:** 5-minute, 15-minute, and cancel buttons.
+  - **Radio Stream Presets:** Instant 1-click chillout/mellow and rock web streams.
+
+### 10.7 Inaudible Infrasound Keep-Alive Daemon (Preventing 15-Minute Auto-Off)
 - **Root Cause:** The JBL Clip 3 has an unconfigurable internal firmware sleep timer that completely shuts off the speaker and its Bluetooth transceiver after 15 minutes of audio inactivity, requiring a physical button press to power back on.
 - **Hardware Prerequisite:** The speaker must be continuously powered via wall socket/USB micro-USB to run 24/7.
 - **Daemon Implementation:**
@@ -259,3 +283,34 @@ docker compose logs -f homeassistant
   - **Tricks Speaker DSP:** The non-zero PCM energy keeps the speaker's internal silence detection from triggering, keeping the speaker permanently powered on.
   - **Seamless Hardware Mixing:** PipeWire mixes Home Assistant TTS announcements and media playback directly over the keep-alive stream with zero latency or pops.
   - **Dynamic Sink Discovery:** Detects Bluetooth sink connection dynamically and resumes automatically if the speaker disconnects or reconnects.
+
+---
+
+## 11. Servarr Media Automation Stack (Sonarr, Radarr, Prowlarr, qBittorrent, Bazarr)
+
+Added full media acquisition, automated downloading, indexing, and subtitle management integrated with Jellyfin under [stacks/media/compose.yml](stacks/media/compose.yml):
+
+### 11.1 Container Services & Port Assignments
+| Service | Image | Web UI Port | Function / Integration |
+| :--- | :--- | :--- | :--- |
+| `qbittorrent` | `lscr.io/linuxserver/qbittorrent:latest` | `8085` (peering `6881` TCP/UDP) | Download client. Saves to `/data/torrents/` (`tv`, `movies`). Auth configured with `admin:adminadmin`, CSRF disabled for docker bridge subnets. |
+| `prowlarr` | `lscr.io/linuxserver/prowlarr:latest` | `9696` | Indexer manager. Synchronized to Sonarr (`http://sonarr:8989`) and Radarr (`http://radarr:7878`) with Full Sync. |
+| `sonarr` | `lscr.io/linuxserver/sonarr:latest` | `8989` | TV Show management. Root folder `/data/media/Shows`. Connects to qBittorrent (`http://qbittorrent:8085`, category `tv`) and Jellyfin (`http://192.168.1.150:8096`, path mapping `/data/media/` -> `/media/`). |
+| `radarr` | `lscr.io/linuxserver/radarr:latest` | `7878` | Movie management. Root folder `/data/media/Movies`. Connects to qBittorrent (`http://qbittorrent:8085`, category `movies`) and Jellyfin (`http://192.168.1.150:8096`, path mapping `/data/media/` -> `/media/`). |
+| `bazarr` | `lscr.io/linuxserver/bazarr:latest` | `6767` | Subtitle manager. Connected via real-time SignalR to Sonarr & Radarr. Saves `.en.srt` directly alongside media; notifies Jellyfin on download. |
+
+### 11.2 Storage Architecture & Atomic Hardlinks (TRaSH Guides Standard)
+- **Unified Root Mount (`/mnt/hdd:/data`):**
+  - Host `/mnt/hdd` mounted to `/data` in `qbittorrent`, `sonarr`, `radarr`, and `bazarr`.
+  - Downloads: `/mnt/hdd/torrents/` (`/data/torrents/tv`, `/data/torrents/movies`, `/data/torrents/incomplete`).
+  - Media: Relative symlink `/mnt/hdd/media -> jellyfin/media` (`/data/media/Shows`, `/data/media/Movies`).
+  - **Instant Hardlinks:** Because both `/data/torrents/` and `/data/media/` live within the same `/data` filesystem mount inside the containers, Sonarr and Radarr use instantaneous atomic hardlinks (`link()`). Files seed in qBittorrent while being played in Jellyfin without doubling disk usage or causing slow I/O copies.
+  - **Jellyfin Compatibility:** Jellyfin's existing mount `${JELLYFIN_MEDIA_DIR}:/media` remains completely unmodified. Hardlinked files appear instantly in `/mnt/hdd/jellyfin/media/Shows` and `Movies`, preserving existing library scans, images, and user progress.
+  - **Auto-Sorter Compatibility:** Host `homeserver-media-sorter.service` ignores `Movies` and `Shows` (protected) and only processes loose files dropped directly in `/mnt/hdd/jellyfin/media` root.
+
+### 11.3 Networking, DNS & Dashboard Integration
+- **Internal Docker Network:** Containers communicate via Docker internal DNS (`homeserver_default` bridge): `http://qbittorrent:8085`, `http://sonarr:8989`, `http://radarr:7878`, `http://prowlarr:9696`.
+- **Jellyfin Host Bridge:** Jellyfin runs in `network_mode: host` (:8096) and is accessed by the *arr containers via host IP `http://192.168.1.150:8096` (and `host.docker.internal`).
+- **Pi-hole Local DNS:** Registered `sonarr.homepi.local`, `radarr.homepi.local`, `prowlarr.homepi.local`, `qbittorrent.homepi.local`, `bazarr.homepi.local` in `data/pihole/etc-pihole/pihole.toml`.
+- **Glance Dashboard:** Added Sonarr, Radarr, Prowlarr, qBittorrent, and Bazarr to the `Services` monitor widget in `data/glance/config/basic_start.yml`.
+
