@@ -134,7 +134,7 @@ cd /home/jake/HomeServer
 
 # Check all containers & systemd helpers
 docker compose ps
-sudo systemctl status homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc homeserver-mpris-proxy homeserver-bluetooth-media-bridge
+sudo systemctl status homeserver-updater homeserver-media-sorter homeserver-bluetooth-reconnect homeserver-vlc homeserver-mpris-proxy homeserver-bluetooth-media-bridge homeserver-audio-keepalive
 
 # Check JBL Clip 3 Bluetooth & audio status
 bluetoothctl info <SPEAKER_BT_MAC>
@@ -247,3 +247,15 @@ docker compose logs -f homeassistant
   - **Speaker Buttons -> Home Assistant Volume:** Monitors BlueZ D-Bus `PropertiesChanged` on `org.bluez.MediaTransport1` for property `Volume` (0..127). When the user presses `+` or `-` on the JBL Clip 3, it converts the level (`vol / 127.0`) and calls `media_player.volume_set` in Home Assistant, so the Home Assistant UI slider moves in real time.
   - **Home Assistant Slider -> Physical Speaker Volume:** Monitors PulseAudio sink-input volume changes from Home Assistant and syncs them to PipeWire sink `bluez_output.<BT_MAC_UNDERSCORES>.1`, sending AVRCP Absolute Volume commands to the speaker to adjust the physical amplifier.
   - **Hardware Key Listener:** Monitors `/dev/input/event*` for `JBL Clip 3 (AVRCP)` events (`KEY_PLAYPAUSE`, `KEY_NEXTSONG`, `KEY_PREVIOUSSONG`) and dispatches Home Assistant media player service calls.
+
+### 10.6 Inaudible Infrasound Keep-Alive Daemon (Preventing 15-Minute Auto-Off)
+- **Root Cause:** The JBL Clip 3 has an unconfigurable internal firmware sleep timer that completely shuts off the speaker and its Bluetooth transceiver after 15 minutes of audio inactivity, requiring a physical button press to power back on.
+- **Hardware Prerequisite:** The speaker must be continuously powered via wall socket/USB micro-USB to run 24/7.
+- **Daemon Implementation:**
+  - Script: [scripts/audio-keepalive.py](scripts/audio-keepalive.py).
+  - Systemd unit: `homeserver-audio-keepalive.service` ([scripts/homeserver-audio-keepalive.service](scripts/homeserver-audio-keepalive.service)).
+  - Streams an imperceptible 5 Hz infrasound sine wave (44.1 kHz, stereo, 16-bit, -36 dBFS) to the active `bluez_output.*` sink via `pw-play`.
+  - **100% Inaudible:** 5 Hz is far below the human hearing threshold (20 Hz) and the physical limits of the 40mm transducer (120 Hz). Zero hiss, buzz, or distortion.
+  - **Tricks Speaker DSP:** The non-zero PCM energy keeps the speaker's internal silence detection from triggering, keeping the speaker permanently powered on.
+  - **Seamless Hardware Mixing:** PipeWire mixes Home Assistant TTS announcements and media playback directly over the keep-alive stream with zero latency or pops.
+  - **Dynamic Sink Discovery:** Detects Bluetooth sink connection dynamically and resumes automatically if the speaker disconnects or reconnects.

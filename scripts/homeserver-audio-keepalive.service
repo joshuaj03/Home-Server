@@ -1,0 +1,17 @@
+[Unit]
+Description=JBL Clip 3 Inaudible Audio Keep-Alive Service
+After=homeserver-bluetooth-reconnect.service pipewire.service
+Wants=homeserver-bluetooth-reconnect.service
+
+[Service]
+Type=simple
+User=jake
+Group=jake
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/python3 /home/jake/HomeServer/scripts/audio-keepalive.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
