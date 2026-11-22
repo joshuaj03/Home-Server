@@ -76,6 +76,7 @@ services:
       - /mnt/hdd:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "api.radarr.video:104.21.43.147"
 
   bazarr:
     image: lscr.io/linuxserver/bazarr:latest
@@ -92,3 +93,20 @@ services:
       - /mnt/hdd:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    container_name: seerr
+    init: true
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=${TZ:-Asia/Kolkata}
+      - PORT=5055
+    ports:
+      - "5055:5055"
+    volumes:
+      - ../../data/seerr:/app/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+

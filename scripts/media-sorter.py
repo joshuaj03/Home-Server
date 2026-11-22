@@ -41,7 +41,7 @@ CACHE_FILE = LOG_DIR / "subliminal_cache.dbm"
 JELLYFIN_URL = os.environ.get("JELLYFIN_URL", "http://127.0.0.1:8096").rstrip("/")
 JELLYFIN_API_KEY = os.environ.get("JELLYFIN_API_KEY", "").strip()
 
-PROTECTED_TOP_DIRS = {"Movies", "Shows", "Music", "MusicVideos", "Books"}
+PROTECTED_TOP_DIRS = {"Movies", "Shows", "Anime", "Music", "MusicVideos", "Books"}
 VIDEO_EXTS = {".mkv", ".mp4", ".avi", ".mov", ".m4v", ".webm", ".ts", ".wmv", ".flv"}
 SUB_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
 TEMP_EXTS = {".part", ".tmp", ".crdownload", ".!qb", ".aria2", ".downloading", ".filepart"}

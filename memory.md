@@ -298,6 +298,7 @@ Added full media acquisition, automated downloading, indexing, and subtitle mana
 | `sonarr` | `lscr.io/linuxserver/sonarr:latest` | `8989` | TV Show management. Root folder `/data/media/Shows`. Connects to qBittorrent (`http://qbittorrent:8085`, category `tv`) and Jellyfin (`http://192.168.1.150:8096`, path mapping `/data/media/` -> `/media/`). |
 | `radarr` | `lscr.io/linuxserver/radarr:latest` | `7878` | Movie management. Root folder `/data/media/Movies`. Connects to qBittorrent (`http://qbittorrent:8085`, category `movies`) and Jellyfin (`http://192.168.1.150:8096`, path mapping `/data/media/` -> `/media/`). |
 | `bazarr` | `lscr.io/linuxserver/bazarr:latest` | `6767` | Subtitle manager. Connected via real-time SignalR to Sonarr & Radarr. Saves `.en.srt` directly alongside media; notifies Jellyfin on download. |
+| `seerr` | `ghcr.io/seerr-team/seerr:latest` | `5055` | Request and discovery manager (unified successor to Overseerr and Jellyseerr). Integrates with Jellyfin auth, Sonarr, and Radarr. |
 
 ### 11.2 Storage Architecture & Atomic Hardlinks (TRaSH Guides Standard)
 - **Unified Root Mount (`/mnt/hdd:/data`):**
@@ -313,4 +314,9 @@ Added full media acquisition, automated downloading, indexing, and subtitle mana
 - **Jellyfin Host Bridge:** Jellyfin runs in `network_mode: host` (:8096) and is accessed by the *arr containers via host IP `http://192.168.1.150:8096` (and `host.docker.internal`).
 - **Pi-hole Local DNS:** Registered `sonarr.homepi.local`, `radarr.homepi.local`, `prowlarr.homepi.local`, `qbittorrent.homepi.local`, `bazarr.homepi.local` in `data/pihole/etc-pihole/pihole.toml`.
 - **Glance Dashboard:** Added Sonarr, Radarr, Prowlarr, qBittorrent, and Bazarr to the `Services` monitor widget in `data/glance/config/basic_start.yml`.
+- **Indexers & Media Management:**
+  - Configured public general TV/movie indexers (`The Pirate Bay`, `LimeTorrents`, `Knaben`, `YTS`) alongside anime indexers (`Nyaa.si`, `Anime Tosho`) in Prowlarr, fully synchronized to both Sonarr and Radarr.
+  - Included category `8000` (Other) in Radarr's application sync categories so indexers like LimeTorrents pass Radarr keywordless testing cleanly.
+  - Kept `createEmptySeriesFolders: false` in Sonarr Media Management (series folders are only created when files are downloaded and imported).
+
 

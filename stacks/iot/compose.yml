@@ -14,7 +14,7 @@ services:
 
   flask_app:
     build: ./flask_app
-    image: iot-dashboard-flask_app:latest
+    image: ghcr.io/joshuaj03/iot-dashboard-flask_app:latest
     container_name: flask_app
     restart: unless-stopped
     ports:
